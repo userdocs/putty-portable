@@ -12,6 +12,7 @@ jobs:
 
     env:
       putty_git: "https://git.tartarus.org/simon/putty.git"
+      LANG: "C.UTF-8"
     
     steps:
     - name: Checkout repository
