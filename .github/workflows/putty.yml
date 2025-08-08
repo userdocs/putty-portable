@@ -1,0 +1,56 @@
+name: Build PuTTY Portable
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      putty_git: "https://git.tartarus.org/simon/putty.git"
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up build environment
+      run: printf '%s\n' "putty_tag=$(git ls-remote -q -t --refs "${putty_git}" | awk '{sub("refs/tags/", ""); if($2 ~ /^[0-9]+\.[0-9]+$/) print $2}' | sort -rV | head -n 1)" > $GITHUB_ENV
+        
+    - name: git clone 
+      run: git clone --no-tags --single-branch --branch "${putty_tag}" --shallow-submodules --recurse-submodules -j"$(nproc)" --depth 1 "${putty_git}" "putty"
+    
+    - name: Setup Visual Studio environment
+      uses: microsoft/setup-msbuild@v2
+        
+    - name: Build PuTTY with CMake
+      run: |
+        cd putty
+        mkdir build
+        cd build
+        # Configure with CMake
+        cmake .. -A x64
+        # Build with CMake
+        cmake --build . --config Release
+        
+    - name: Create portable package
+      run: |
+        mkdir -p putty-portable
+        cd putty/build
+        # Copy built executables from Release directory
+        cp Release/putty.exe ../../putty-portable/
+        cp Release/puttygen.exe ../../putty-portable/
+        cp Release/pageant.exe ../../putty-portable/
+        cp Release/pscp.exe ../../putty-portable/
+        cp Release/psftp.exe ../../putty-portable/
+        cp Release/plink.exe ../../putty-portable/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: putty-portable-build
+        path: putty-portable/
